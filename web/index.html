@@ -41,6 +41,43 @@
     padding:5px 10px;border-radius:999px;
   }
   .chip b{color:var(--accent);font-weight:600}
+  .header-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .link-btn{
+    display:inline-flex;align-items:center;gap:6px;line-height:1;
+    font-family:inherit;font-size:12.5px;color:#42506b;background:#fff;
+    border:1px solid var(--line);padding:6px 11px;border-radius:999px;
+    cursor:pointer;text-decoration:none;transition:.15s;
+  }
+  .link-btn:hover{border-color:var(--accent);color:var(--accent);background:#fafbff}
+  .link-btn svg{width:15px;height:15px;fill:currentColor;flex:0 0 auto}
+
+  /* ---------- version modal ---------- */
+  .modal-mask{
+    position:fixed;inset:0;background:rgba(16,24,40,.42);display:none;
+    align-items:center;justify-content:center;padding:24px;z-index:120;
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  }
+  .modal-mask.show{display:flex}
+  .modal{
+    background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:80vh;
+    overflow:auto;box-shadow:0 24px 60px -20px rgba(16,24,40,.5);padding:22px 24px;
+    animation:pop .18s ease-out;
+  }
+  @keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .modal-head h3{font-size:16px;margin:0;color:#1c2433}
+  .modal-x{
+    border:0;background:#f2f4fa;color:#5b6478;width:30px;height:30px;border-radius:9px;
+    font-size:18px;line-height:1;cursor:pointer;transition:.15s;
+  }
+  .modal-x:hover{background:var(--err-soft);color:var(--err)}
+  .ver-item{border-top:1px solid var(--line);padding:14px 0 4px}
+  .ver-item:first-of-type{border-top:0}
+  .ver-tag{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:var(--accent);margin-bottom:6px}
+  .ver-tag .ver-cur{font-size:11px;font-weight:600;color:var(--ok);background:var(--ok-soft);padding:2px 8px;border-radius:999px}
+  .ver-tag .ver-date{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--muted)}
+  .ver-item ul{margin:0;padding-left:18px;color:#3b465c;font-size:12.8px;line-height:1.75}
+  .ver-item li{margin:3px 0}
 
   /* ---------- layout ---------- */
   .layout{display:grid;grid-template-columns:minmax(0,1fr) 396px;gap:20px;align-items:start}
@@ -207,6 +244,16 @@
       <span class="chip">源程序 <b>前30 + 后30</b> 页</span>
       <span class="chip">每页 <b>≥50</b> 行</span>
       <span class="chip">文档 <b>≥30</b> 行/页</span>
+    </div>
+    <div class="header-links">
+      <a class="link-btn" href="https://github.com/David-Lee-Q/ruanzhu-agent" target="_blank" rel="noopener noreferrer" title="GitHub 仓库">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+      <button type="button" class="link-btn" id="verBtn" title="版本记录">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm0 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zM7.25 4h1.5v4.25l3.25 1.92-.75 1.3L7.25 8.75V4z"/></svg>
+        <span>版本记录</span>
+      </button>
     </div>
   </header>
 
@@ -468,6 +515,30 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
+<div class="modal-mask" id="verModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="版本记录">
+    <div class="modal-head">
+      <h3>版本记录</h3>
+      <button type="button" class="modal-x" id="verClose" aria-label="关闭">×</button>
+    </div>
+    <div class="ver-item">
+      <div class="ver-tag">v2.0.0 <span class="ver-cur">当前版本</span><span class="ver-date">2026-11</span></div>
+      <ul>
+        <li>开发目的 / 面向领域 / 主要功能：从说明书真实正文自动抽取并填充</li>
+        <li>技术特点标签：强区分词门槛识别，规避通用词误判</li>
+        <li>源程序支持源码目录、单文件、.zip 压缩包与已生成 PDF 直通</li>
+        <li>Web UI 与 CLI 双入口，生成鉴别材料 PDF 并校验字段</li>
+      </ul>
+    </div>
+    <div class="ver-item">
+      <div class="ver-tag">v1.0.0 <span class="ver-date">2026-07</span></div>
+      <ul>
+        <li>首个可用版本：源程序 / 说明书处理、鉴别材料 PDF 生成、字段校验</li>
+      </ul>
+    </div>
+  </div>
+</div>
 
 <script>
 const $ = (s, r = document) => r.querySelector(s);
@@ -865,6 +936,18 @@ function pollAgent() {
     }
   }, 3000);
 }
+
+/* ---------------- 版本记录弹窗 ---------------- */
+(() => {
+  const mask = $('#verModal'), btn = $('#verBtn'), close = $('#verClose');
+  if (!mask || !btn) return;
+  const open = () => mask.classList.add('show');
+  const shut = () => mask.classList.remove('show');
+  btn.addEventListener('click', open);
+  if (close) close.addEventListener('click', shut);
+  mask.addEventListener('click', e => { if (e.target === mask) shut(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') shut(); });
+})();
 </script>
 </body>
 </html>
