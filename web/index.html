@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>软著登记自动化智能体 · R11 全自动填报</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#161a26; --muted:#6b7280;
+    --line:#e6e9f2; --accent:#2b5cff; --accent-soft:#eef2ff;
+    --ok:#12945d; --ok-soft:#e8f7ef; --warn:#b26a00; --warn-soft:#fff6e5;
+    --err:#c8362f; --err-soft:#fdeceb; --radius:14px;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -12px rgba(16,24,40,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 400px at 20% -10%, #e8eeff 0%, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",
+         "Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 24px 64px}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+  .logo{
+    width:46px;height:46px;border-radius:13px;flex:0 0 auto;
+    background:linear-gradient(145deg,#3b6bff,#1e3fbf);
+    color:#fff;display:grid;place-items:center;font-weight:700;font-size:19px;
+    box-shadow:0 8px 18px -8px rgba(43,92,255,.75);
+  }
+  h1{font-size:20px;margin:0;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .chips{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{
+    font-size:12px;color:#42506b;background:#fff;border:1px solid var(--line);
+    padding:5px 10px;border-radius:999px;
+  }
+  .chip b{color:var(--accent);font-weight:600}
+
+  /* ---------- layout ---------- */
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 396px;gap:20px;align-items:start}
+  .layout.pre-run{grid-template-columns:minmax(0,1fr)}
+  .layout.pre-run .side{display:none}
+  .layout.pre-run #section4{display:none}
+  @media (max-width:1040px){ .layout{grid-template-columns:1fr} .side{position:static!important} }
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 22px 20px;margin-bottom:18px;
+  }
+  .card h2{
+    font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:9px;
+  }
+  .step{
+    width:22px;height:22px;border-radius:7px;background:var(--accent-soft);
+    color:var(--accent);font-size:12px;font-weight:700;display:grid;place-items:center;
+  }
+  .hint{color:var(--muted);font-size:12.5px;margin:0 0 16px 31px}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+  .grid .col-2{grid-column:span 2}
+  @media (max-width:620px){ .grid{grid-template-columns:1fr} .grid .col-2{grid-column:span 1} }
+
+  label.f{display:block;font-size:12.5px;color:#3b465c;margin-bottom:6px;font-weight:500}
+  label.f .req{color:var(--err);margin-left:2px}
+  input[type=text],input[type=password],input[type=date],select,textarea{
+    width:100%;border:1px solid #dfe3ee;border-radius:10px;background:#fbfcff;
+    padding:9px 11px;font:inherit;font-size:13.5px;color:var(--ink);
+    transition:border-color .15s,box-shadow .15s,background .15s;outline:none;
+  }
+  input:focus,select:focus,textarea:focus{
+    border-color:#9db4ff;background:#fff;box-shadow:0 0 0 3px rgba(43,92,255,.12);
+  }
+  textarea{resize:vertical;min-height:96px;line-height:1.7}
+  .row-end{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+  .count{font-size:11.5px;color:#9aa3b5;font-variant-numeric:tabular-nums}
+  .count.over{color:var(--err);font-weight:600}
+  .count.ok{color:var(--ok)}
+
+  /* ---------- upload ---------- */
+  .drop{
+    border:1.5px dashed #cfd6e8;border-radius:12px;background:#fafbff;
+    padding:18px;text-align:center;cursor:pointer;transition:.16s;position:relative;
+  }
+  .drop:hover,.drop.hot{border-color:var(--accent);background:var(--accent-soft)}
+  .drop .big{font-size:13.5px;font-weight:600;color:#31405e}
+  .drop .small{font-size:12px;color:var(--muted);margin-top:4px}
+  .drop .picked{margin-top:10px;font-size:12px;color:var(--ok);font-weight:600}
+  .drop input[type=file]{display:none}
+  .drop .acts{display:flex;gap:8px;justify-content:center;margin-top:10px}
+  .mini-btn{
+    font-size:12px;border:1px solid #d7dcea;background:#fff;color:#3b465c;
+    padding:4px 10px;border-radius:8px;cursor:pointer;
+  }
+  .mini-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---------- chips select ---------- */
+  .tagbox{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+  .tag{
+    font-size:12.5px;padding:5px 11px;border-radius:999px;cursor:pointer;
+    border:1px solid #dde2ef;background:#fff;color:#48536b;transition:.14s;
+    user-select:none;
+  }
+  .tag:hover{border-color:#b9c6ee}
+  .tag.on{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 10px -6px rgba(43,92,255,.8)}
+
+  details.opt{border-top:1px dashed var(--line);margin-top:18px;padding-top:14px}
+  details.opt summary{
+    cursor:pointer;font-size:13px;font-weight:600;color:#31405e;list-style:none;
+    display:flex;align-items:center;gap:8px;
+  }
+  details.opt summary::-webkit-details-marker{display:none}
+  details.opt summary::before{content:"›";transition:.2s;color:var(--accent);font-size:17px}
+  details.opt[open] summary::before{transform:rotate(90deg)}
+  .pill{font-size:11px;color:var(--warn);background:var(--warn-soft);
+        padding:2px 8px;border-radius:999px;font-weight:600}
+
+  /* ---------- side ---------- */
+  .side{position:sticky;top:24px}
+  .run-btn{
+    width:100%;border:0;border-radius:12px;padding:14px 16px;cursor:pointer;
+    background:linear-gradient(145deg,#3b6bff,#2049d8);color:#fff;
+    font-size:15px;font-weight:650;letter-spacing:.3px;
+    box-shadow:0 12px 26px -14px rgba(43,92,255,.9);transition:.18s;
+  }
+  .run-btn:hover{transform:translateY(-1px);box-shadow:0 16px 30px -14px rgba(43,92,255,.95)}
+  .run-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+  .run-sub{text-align:center;font-size:11.5px;color:var(--muted);margin-top:9px}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .stat{background:#f8faff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .stat .k{font-size:11.5px;color:var(--muted)}
+  .stat .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .stat .v small{font-size:11.5px;font-weight:500;color:var(--muted);margin-left:3px}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:650;
+    padding:6px 11px;border-radius:999px;margin-top:4px;
+  }
+  .badge.ok{background:var(--ok-soft);color:var(--ok)}
+  .badge.err{background:var(--err-soft);color:var(--err)}
+  .badge.wait{background:#eef1f7;color:#6b7280}
+
+  .issue{
+    display:flex;gap:8px;font-size:12.5px;padding:9px 11px;border-radius:9px;
+    margin-top:8px;line-height:1.55;
+  }
+  .issue.e{background:var(--err-soft);color:#8d221c}
+  .issue.w{background:var(--warn-soft);color:#7a4a00}
+  .issue b{font-weight:650}
+
+  .dl{display:grid;gap:8px;margin-top:14px}
+  .dl a{
+    display:flex;align-items:center;gap:9px;text-decoration:none;color:#2b3650;
+    border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12.8px;
+    background:#fff;transition:.15s;
+  }
+  .dl a:hover{border-color:var(--accent);color:var(--accent);background:#fafbff}
+  .dl .ic{width:20px;height:20px;border-radius:6px;background:var(--accent-soft);
+          color:var(--accent);display:grid;place-items:center;font-size:11px;font-weight:700}
+
+  .divider{height:1px;background:var(--line);margin:18px 0}
+  .side h3{font-size:13px;margin:0 0 10px;color:#31405e}
+  .side .grid{grid-template-columns:1fr 1fr;gap:10px}
+  .side .grid .col-2{grid-column:span 2}
+  .checkline{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#48536b}
+  .checkline input{accent-color:var(--accent)}
+  .ghost-btn{
+    width:100%;margin-top:10px;border:1px solid #cfd6e8;background:#fff;color:#31405e;
+    border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .ghost-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .ghost-btn:disabled{opacity:.5;cursor:not-allowed}
+  .agent-state{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.6}
+
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
+    background:#1d2333;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:80vw;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.bad{background:#8d221c}
+  .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.35);
+        border-top-color:#fff;border-radius:50%;display:inline-block;
+        vertical-align:-2px;margin-right:7px;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .meta-note{font-size:11.8px;color:var(--muted);background:#fafbff;border:1px solid var(--line);
+             border-radius:10px;padding:10px 12px;margin-top:16px;line-height:1.7}
+  .meta-note b{color:#31405e}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">©</div>
+    <div>
+      <h1>软著登记自动化智能体</h1>
+      <div class="sub">中国版权保护中心 · R11 软件著作权登记申请 · 材料生成 / 字段校验 / 自动填报</div>
+    </div>
+    <div class="chips">
+      <span class="chip">源程序 <b>前30 + 后30</b> 页</span>
+      <span class="chip">每页 <b>≥50</b> 行</span>
+      <span class="chip">文档 <b>≥30</b> 行/页</span>
+    </div>
+  </header>
+
+  <div class="layout pre-run">
+    <!-- ================= 左：表单 ================= -->
+    <form id="form" class="main" autocomplete="off">
+
+      <section class="card">
+        <h2><span class="step">1</span>软件申请信息</h2>
+        <p class="hint">对应平台「软件申请信息」页，带 * 的为必填项</p>
+        <div class="grid">
+          <div>
+            <label class="f">软件全称<span class="req">*</span></label>
+            <input type="text" name="full_name" placeholder="如：智能数据分析系统" required>
+          </div>
+          <div>
+            <label class="f">软件简称</label>
+            <input type="text" name="short_name" placeholder="选填">
+          </div>
+          <div>
+            <label class="f">版本号<span class="req">*</span></label>
+            <input type="text" name="version" placeholder="如：V1.0" value="V1.0" required>
+          </div>
+          <div>
+            <label class="f">开发完成日期<span class="req">*</span></label>
+            <input type="date" name="develop_date" required>
+          </div>
+          <div>
+            <label class="f">发表状态</label>
+            <select name="publish_status" id="pubStatus">
+              <option value="unpublished">未发表</option>
+              <option value="published">已发表</option>
+            </select>
+          </div>
+          <div>
+            <label class="f">开发方式</label>
+            <select name="development_type">
+              <option value="independent">单独开发</option>
+              <option value="cooperative">合作开发</option>
+              <option value="commissioned">委托开发</option>
+              <option value="task">下达任务开发</option>
+            </select>
+          </div>
+          <div id="pubDateWrap" style="display:none">
+            <label class="f">首次发表日期</label>
+            <input type="date" name="publish_date">
+          </div>
+          <div id="pubLocWrap" style="display:none">
+            <label class="f">首次发表地点</label>
+            <input type="text" name="publish_location" placeholder="如：北京市">
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">2</span>著作权人</h2>
+        <p class="hint">公司填营业执照全称；个人填身份证姓名</p>
+        <div class="grid">
+          <div class="col-2">
+            <label class="f">名称<span class="req">*</span></label>
+            <input type="text" name="holder_name" placeholder="如：北京某某科技有限公司" required>
+          </div>
+          <div>
+            <label class="f">主体类型</label>
+            <select name="holder_category">
+              <option value="legal">单位（法人）</option>
+              <option value="natural">自然人</option>
+              <option value="illegal">其他组织</option>
+            </select>
+          </div>
+          <div>
+            <label class="f">证件类型</label>
+            <select name="holder_id_type">
+              <option value="统一社会信用代码">统一社会信用代码</option>
+              <option value="居民身份证">居民身份证</option>
+              <option value="护照">护照</option>
+            </select>
+          </div>
+          <div class="col-2">
+            <label class="f">证件号码<span class="req">*</span></label>
+            <input type="text" name="holder_id_number" placeholder="18 位统一社会信用代码 / 身份证号" required>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">3</span>鉴别材料</h2>
+        <p class="hint">源程序自动清洗注释、合并、按 50 行分页并截取前 30 + 后 30 页；说明书按 30 行分页</p>
+        <div class="grid">
+          <div>
+            <label class="f">源程序<span class="req">*</span></label>
+            <div class="drop" id="srcDrop">
+              <div class="big">拖拽代码文件夹 / 压缩包 / PDF 到此处</div>
+              <div class="small">支持多语言工程、.zip 压缩包或已生成的源程序 PDF，自动过滤二进制与依赖目录</div>
+              <div class="acts">
+                <button type="button" class="mini-btn" id="pickDir">选择文件夹</button>
+                <button type="button" class="mini-btn" id="pickFiles">选择文件</button>
+              </div>
+              <div class="picked" id="srcPicked">未选择</div>
+              <input type="file" id="srcDirInput" webkitdirectory directory multiple>
+              <input type="file" id="srcFileInput" multiple>
+            </div>
+          </div>
+          <div>
+            <label class="f">软件使用说明书<span class="req">*</span></label>
+            <div class="drop" id="manDrop">
+              <div class="big">拖拽说明书到此处</div>
+              <div class="small">支持 .docx / .md / .txt / .html</div>
+              <div class="acts">
+                <button type="button" class="mini-btn" id="pickManual">选择文件</button>
+              </div>
+              <div class="picked" id="manPicked">未选择</div>
+              <input type="file" id="manInput" accept=".docx,.md,.txt,.html,.htm">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="padding:18px;text-align:center">
+        <button class="run-btn" id="runBtn" style="max-width:380px;margin:0 auto">生成鉴别材料并校验</button>
+        <div class="run-sub">本地生成，不会自动提交任何资料</div>
+      </section>
+
+      <section class="card" id="section4">
+        <h2><span class="step">4</span>开发信息与功能描述</h2>
+        <p class="hint">留空的字段会依据源代码语言与说明书自动生成，可在生成后回填复核</p>
+        <div class="grid">
+          <div>
+            <label class="f">开发的硬件环境</label>
+            <input type="text" name="dev_hardware_env" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="dev_hardware_env"></span></div>
+          </div>
+          <div>
+            <label class="f">运行的硬件环境</label>
+            <input type="text" name="run_hardware_env" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="run_hardware_env"></span></div>
+          </div>
+          <div>
+            <label class="f">开发该软件的操作系统</label>
+            <input type="text" name="dev_os" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="dev_os"></span></div>
+          </div>
+          <div>
+            <label class="f">软件开发环境 / 开发工具</label>
+            <input type="text" name="dev_environment" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="dev_environment"></span></div>
+          </div>
+          <div>
+            <label class="f">该软件的运行平台 / 操作系统</label>
+            <input type="text" name="run_platform" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="run_platform"></span></div>
+          </div>
+          <div>
+            <label class="f">软件运行支撑环境 / 支持软件</label>
+            <input type="text" name="support_env" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="support_env"></span></div>
+          </div>
+
+          <div class="col-2">
+            <label class="f">编程语言（可多选）</label>
+            <div class="tagbox" id="langBox"></div>
+            <input type="hidden" name="languages" id="languages">
+            <div style="margin-top:10px">
+              <input type="text" name="languages_custom" data-max="120" placeholder="其他语言（不在上方列表时填写）">
+              <div class="row-end"><span></span><span class="count" data-for="languages_custom"></span></div>
+            </div>
+          </div>
+
+          <div>
+            <label class="f">开发目的</label>
+            <input type="text" name="purpose" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="purpose"></span></div>
+          </div>
+          <div>
+            <label class="f">面向领域 / 行业</label>
+            <input type="text" name="target_industry" data-max="50" placeholder="留空自动生成">
+            <div class="row-end"><span></span><span class="count" data-for="target_industry"></span></div>
+          </div>
+
+          <div class="col-2">
+            <label class="f">软件的主要功能<span class="req">*</span></label>
+            <textarea name="main_functions" data-max="1300" data-min="500" rows="7"
+              placeholder="平台要求 500-1300 字；留空将依据说明书自动生成"></textarea>
+            <div class="row-end"><span class="small" style="font-size:11.5px;color:#9aa3b5">500-1300 字</span>
+              <span class="count" data-for="main_functions"></span></div>
+          </div>
+
+          <div class="col-2">
+            <label class="f">技术特点分类标签<span class="req">*</span></label>
+            <div class="tagbox" id="techBox"></div>
+            <input type="hidden" name="tech_tags" id="techTags">
+            <div style="margin-top:10px">
+              <input type="text" name="tech_desc" data-max="100" placeholder="技术特点描述（留空自动生成）">
+              <div class="row-end"><span></span><span class="count" data-for="tech_desc"></span></div>
+            </div>
+          </div>
+
+          <div>
+            <label class="f">程序鉴别材料交存方式</label>
+            <select name="program_submit_type">
+              <option value="normal">一般交存（前30 + 后30 页）</option>
+              <option value="exception">例外交存</option>
+            </select>
+          </div>
+          <div>
+            <label class="f">文档鉴别材料交存方式</label>
+            <select name="doc_submit_type">
+              <option value="normal">一般交存</option>
+              <option value="exception">例外交存</option>
+            </select>
+          </div>
+        </div>
+        <div class="meta-note">
+          <b>自动生成规则：</b>环境字段按检测到的编程语言生成（每个 50 字内）；主要功能先从说明书提取，
+          不足 500 字时自动补齐至合规字数；技术特点标签按软件名称与说明书关键词打分匹配，最多 3 个。
+        </div>
+      </section>
+    </form>
+
+    <!-- ================= 右：运行面板 ================= -->
+    <aside class="side">
+      <div class="card" style="padding:18px">
+        <div id="resultArea">
+          <span class="badge wait" id="statusBadge">待运行</span>
+          <div class="stats" id="stats" style="display:none">
+            <div class="stat"><div class="k">源程序</div><div class="v" id="stFiles">0<small>文件</small></div></div>
+            <div class="stat"><div class="k">有效代码行</div><div class="v" id="stLines">0<small>行</small></div></div>
+            <div class="stat"><div class="k">源程序提交</div><div class="v" id="stPages">0<small>页</small></div></div>
+            <div class="stat"><div class="k">说明书提交</div><div class="v" id="stDocPages">0<small>页</small></div></div>
+          </div>
+          <div id="issues"></div>
+          <div class="dl" id="downloads" style="display:none">
+            <a href="#" data-kind="source_pdf"><span class="ic">P</span>源程序鉴别材料 PDF</a>
+            <a href="#" data-kind="manual_pdf"><span class="ic">D</span>文档鉴别材料 PDF</a>
+            <a href="#" data-kind="app_json"><span class="ic">J</span>申请信息 JSON</a>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3>自动填报（可选）</h3>
+        <div class="grid">
+          <div class="col-2">
+            <label class="f">平台账号</label>
+            <input type="text" id="acc" placeholder="ccopyright.com.cn 账号">
+          </div>
+          <div class="col-2">
+            <label class="f">密码</label>
+            <input type="password" id="pwd" placeholder="密码">
+          </div>
+          <div class="col-2">
+            <label class="checkline"><input type="checkbox" id="autoSubmit"> 自动提交（关闭时停在确认页）</label>
+          </div>
+        </div>
+        <button class="ghost-btn" id="agentBtn" disabled>启动浏览器自动填报</button>
+        <div class="agent-state" id="agentState">需先完成材料生成。本功能需在本机运行（会弹出浏览器窗口，验证码需手动完成）；云端预览环境无法弹出浏览器，请在自己电脑上运行项目后使用。</div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ---------------- toast ---------------- */
+let toastTimer;
+function toast(msg, bad) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 3200);
+}
+
+/* ---------------- 字符计数 ---------------- */
+function refreshCount(el) {
+  const max = +el.dataset.max || 0, min = +el.dataset.min || 0;
+  const box = $(`.count[data-for="${el.name}"]`);
+  if (!box) return;
+  const len = el.value.trim().length;
+  box.textContent = min ? `${len}/${min}~${max}` : `${len}/${max}`;
+  box.className = 'count' + (len > max ? ' over' : (min && len >= min ? ' ok' : ''));
+}
+$$('input[data-max],textarea[data-max]').forEach(el => {
+  refreshCount(el);
+  el.addEventListener('input', () => refreshCount(el));
+});
+
+/* ---------------- 发表状态联动 ---------------- */
+$('#pubStatus').addEventListener('change', e => {
+  const on = e.target.value === 'published';
+  $('#pubDateWrap').style.display = on ? '' : 'none';
+  $('#pubLocWrap').style.display = on ? '' : 'none';
+});
+
+/* ---------------- 语言 / 技术标签 ---------------- */
+// 接口前缀不能用 /api：IDE 预览代理占用了 /api（会返回 404 "Session api not registered"）。
+// 同时按当前页面目录解析，兼容被挂载在子路径下的预览场景。
+const API_BASE = (() => {
+  const p = location.pathname;
+  return (p.endsWith('/') ? p : p.slice(0, p.lastIndexOf('/') + 1)) + 'scapi';
+})();
+
+const state = { languages: new Set(), tech: new Set(), srcFiles: [], manual: null, taskId: null };
+
+function renderChips(box, items, set, onChange) {
+  box.innerHTML = '';
+  items.forEach(name => {
+    const b = document.createElement('div');
+    b.className = 'tag' + (set.has(name) ? ' on' : '');
+    b.textContent = name;
+    b.onclick = () => {
+      set.has(name) ? set.delete(name) : set.add(name);
+      b.classList.toggle('on');
+      onChange();
+    };
+    box.appendChild(b);
+  });
+}
+renderChips($('#langBox'), ['Python'], state.languages, () => {});
+renderChips($('#techBox'), [], state.tech, () => {});
+
+fetch(`${API_BASE}/meta`).then(r => r.json()).then(meta => {
+  renderChips($('#langBox'), meta.languages, state.languages, () => {
+    $('#languages').value = [...state.languages].join(',');
+  });
+  renderChips($('#techBox'), meta.tech_tags, state.tech, () => {
+    $('#techTags').value = [...state.tech].join(',');
+  });
+}).catch(err => {
+  toast('未连接到后端服务：请用服务地址打开本页面（如 http://localhost:8013），'
+    + '不要直接预览 index.html 文件', true);
+});
+
+/* ---------------- 文件选择 ---------------- */
+const IGNORE_DIRS = ['node_modules', '.git', '__pycache__', 'venv', '.venv', 'env',
+  'dist', 'build', 'target', '.idea', '.vscode', '.next', 'coverage', '.gradle',
+  'Pods', '.tox', '.mypy_cache'];
+const MAX_FILES = 800, MAX_TOTAL = 120 * 1024 * 1024;
+
+function filterFiles(list) {
+  const out = [];
+  let skipped = 0, total = 0;
+  for (const f of list) {
+    const rel = (f.webkitRelativePath || f.name).replace(/\\/g, '/');
+    if (rel.split('/').some(p => IGNORE_DIRS.includes(p))) { skipped++; continue; }
+    total += f.size || 0;
+    if (out.length >= MAX_FILES) { skipped++; continue; }
+    if (total > MAX_TOTAL) { skipped++; continue; }
+    out.push(f);
+  }
+  if (skipped) toast(`已自动跳过 ${skipped} 个依赖/构建/超限文件`, false);
+  return out;
+}
+
+function setSrcFiles(list) {
+  state.srcFiles = filterFiles(list);
+  const n = state.srcFiles.length;
+  const total = state.srcFiles.reduce((s, f) => s + (f.size || 0), 0);
+  $('#srcPicked').textContent = n
+    ? `已选择 ${n} 个文件 · ${(total / 1024 / 1024).toFixed(2)} MB`
+    : '未选择';
+}
+
+$('#pickDir').onclick = e => { e.stopPropagation(); $('#srcDirInput').click(); };
+$('#pickFiles').onclick = e => { e.stopPropagation(); $('#srcFileInput').click(); };
+$('#pickManual').onclick = e => { e.stopPropagation(); $('#manInput').click(); };
+
+$('#srcDirInput').onchange = e => setSrcFiles([...e.target.files]);
+$('#srcFileInput').onchange = e => setSrcFiles([...e.target.files]);
+$('#manInput').onchange = e => {
+  state.manual = e.target.files[0] || null;
+  $('#manPicked').textContent = state.manual ? `已选择 ${state.manual.name}` : '未选择';
+};
+
+function bindDrop(box, onFiles) {
+  ['dragenter', 'dragover'].forEach(ev =>
+    box.addEventListener(ev, e => { e.preventDefault(); box.classList.add('hot'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    box.addEventListener(ev, e => { e.preventDefault(); box.classList.remove('hot'); }));
+  box.addEventListener('drop', async e => {
+    const items = [...(e.dataTransfer.items || [])];
+    if (!items.length) return onFiles([...e.dataTransfer.files]);
+    const files = [];
+    const walk = async (entry, path) => {
+      if (entry.isFile) {
+        const f = await new Promise(res => entry.file(res));
+        files.push(new File([f], path ? `${path}/${f.name}` : f.name, { type: f.type }));
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        const entries = await new Promise(res => reader.readEntries(res));
+        for (const en of entries) await walk(en, path ? `${path}/${entry.name}` : entry.name);
+      }
+    };
+    for (const it of items) {
+      const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
+      if (entry) await walk(entry, '');
+    }
+    onFiles(files.length ? files : [...e.dataTransfer.files]);
+  });
+}
+bindDrop($('#srcDrop'), setSrcFiles);
+bindDrop($('#manDrop'), fs => {
+  state.manual = fs[0] || null;
+  $('#manPicked').textContent = state.manual ? `已选择 ${state.manual.name}` : '未选择';
+});
+$('#srcDrop').addEventListener('click', e => {
+  // 隐藏的 file input 在容器内，它自己的 click 也会冒泡到这里，
+  // 不排除的话会再弹一次「选择文件夹」窗口。
+  if (e.target.tagName === 'INPUT' || e.target.closest('.mini-btn')) return;
+  $('#srcDirInput').click();
+});
+$('#manDrop').addEventListener('click', e => {
+  if (e.target.tagName === 'INPUT' || e.target.closest('.mini-btn')) return;
+  $('#manInput').click();
+});
+
+/* ---------------- 生成 + 校验 ---------------- */
+async function readJson(res) {
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (_) {
+    const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    if (/Session api not registered|Failed to fetch file/i.test(text)) {
+      throw new Error('当前页面没有连上后端服务（是通过文件预览打开的）。'
+        + '请改用服务地址访问，例如 http://localhost:8013 或 IDE 转发出的端口地址。');
+    }
+    throw new Error(`服务端返回异常（HTTP ${res.status}）：${snippet || '空响应'}`);
+  }
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+/* ---------------- 主体类型 → 证件类型联动 ---------------- */
+const HOLDER_ID_TYPES = {
+  legal: ['统一社会信用代码'],
+  illegal: ['统一社会信用代码'],
+  natural: ['居民身份证', '护照'],
+};
+
+function syncHolderIdType(reset) {
+  const cat = $('[name=holder_category]').value || 'legal';
+  const sel = $('[name=holder_id_type]');
+  const allowed = HOLDER_ID_TYPES[cat] || HOLDER_ID_TYPES.legal;
+  const current = sel.value;
+  sel.innerHTML = allowed.map(v => `<option value="${v}">${v}</option>`).join('');
+  sel.value = (reset || !allowed.includes(current)) ? allowed[0] : current;
+  $('[name=holder_id_number]').placeholder =
+    cat === 'natural' ? '居民身份证号 / 护照号' : '18 位统一社会信用代码';
+}
+
+$('[name=holder_category]').addEventListener('change', () => syncHolderIdType(true));
+syncHolderIdType(false);
+
+$('#runBtn').onclick = async () => {
+  $('.layout').classList.remove('pre-run');
+  if (!$('[name=full_name]').value.trim()) return toast('请填写软件全称', true);
+  if (!$('[name=version]').value.trim()) return toast('请填写版本号', true);
+  if (!$('[name=develop_date]').value) return toast('请选择开发完成日期', true);
+  if (!$('[name=holder_name]').value.trim()) return toast('请填写著作权人名称', true);
+  if (!$('[name=holder_id_number]').value.trim()) return toast('请填写证件号码', true);
+  if (!state.srcFiles.length) return toast('请选择源程序文件或文件夹', true);
+  if (!state.manual) return toast('请选择说明书文件', true);
+
+  // 重新生成时重置自动填充字段与语言/标签选择，确保覆盖上一次的内容
+  [
+    'dev_hardware_env', 'run_hardware_env', 'dev_os', 'dev_environment',
+    'run_platform', 'support_env', 'purpose', 'target_industry',
+    'main_functions', 'tech_desc',
+  ].forEach(name => {
+    const el = $(`[name="${name}"]`);
+    if (el) {
+      el.value = '';
+      refreshCount(el);
+    }
+  });
+  state.languages.clear();
+  $$('#langBox .tag').forEach(t => t.classList.remove('on'));
+  $('#languages').value = '';
+  state.tech.clear();
+  $$('#techBox .tag').forEach(t => t.classList.remove('on'));
+  $('#techTags').value = '';
+
+  const btn = $('#runBtn');
+  btn.disabled = true;
+  $('#statusBadge').className = 'badge wait';
+  $('#statusBadge').textContent = '上传中';
+
+  try {
+    // 1) 创建任务（每个文件单独上传，避免超大请求被拦截）
+    const { task_id } = await readJson(await fetch(`${API_BASE}/task`, { method: 'POST' }));
+
+    const files = state.srcFiles;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const rel = f.webkitRelativePath || f.name;
+      const fd = new FormData();
+      fd.append('kind', 'source');
+      fd.append('relpath', rel);
+      fd.append('file', f, rel.split('/').pop());
+      const r = await fetch(`${API_BASE}/task/${task_id}/file`, { method: 'POST', body: fd });
+      if (!r.ok) throw new Error(`上传失败：${rel}（HTTP ${r.status}）`);
+      btn.textContent = `上传中 ${i + 1}/${files.length}`;
+    }
+
+    const mfd = new FormData();
+    mfd.append('kind', 'manual');
+    mfd.append('relpath', state.manual.name);
+    mfd.append('file', state.manual, state.manual.name);
+    const mr = await fetch(`${API_BASE}/task/${task_id}/file`, { method: 'POST', body: mfd });
+    if (!mr.ok) throw new Error(`说明书上传失败（HTTP ${mr.status}）`);
+
+    // 2) 生成 + 校验
+    btn.innerHTML = '<span class="spin"></span>正在处理…';
+    $('#statusBadge').textContent = '处理中';
+
+    const payload = Object.fromEntries(new FormData($('#form')));
+    payload.languages = [...state.languages].join(',');
+    payload.tech_tags = [...state.tech].join(',');
+
+    const data = await readJson(await fetch(`${API_BASE}/task/${task_id}/prepare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }));
+    applyResult(data);
+  } catch (err) {
+    toast(err.message || '生成失败', true);
+    $('#statusBadge').className = 'badge err';
+    $('#statusBadge').textContent = '失败';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '重新生成并校验';
+  }
+};
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+function applyResult(data) {
+  state.taskId = data.task_id;
+  const v = data.validation;
+
+  $('#stats').style.display = 'grid';
+  $('#stFiles').innerHTML = `${data.source.files}<small>文件</small>`;
+  $('#stLines').innerHTML = `${data.source.lines}<small>行</small>`;
+  $('#stPages').innerHTML = `${data.source.pages}<small>页</small>`;
+  $('#stDocPages').innerHTML = `${data.manual.pages}<small>页</small>`;
+
+  const badge = $('#statusBadge');
+  badge.className = 'badge ' + (v.valid ? 'ok' : 'err');
+  badge.textContent = v.valid
+    ? `校验通过 · ${v.warning_count} 条提示`
+    : `校验未通过 · ${v.error_count} 个错误 / ${v.warning_count} 条提示`;
+
+  const issues = [];
+  (data.warnings || []).forEach(w =>
+    issues.push(`<div class="issue w"><span>⚠</span><div>${esc(w)}</div></div>`));
+  v.errors.forEach(e =>
+    issues.push(`<div class="issue e"><span>✗</span><div><b>${esc(e.field)}</b>：${esc(e.message)}</div></div>`));
+  v.warnings.forEach(w =>
+    issues.push(`<div class="issue w"><span>⚠</span><div><b>${esc(w.field)}</b>：${esc(w.message)}</div></div>`));
+  $('#issues').innerHTML = issues.join('');
+
+  const dl = $('#downloads');
+  dl.style.display = 'grid';
+  $$('a', dl).forEach(a => {
+    const kind = a.dataset.kind;
+    const ok = kind === 'app_json' || data.files[kind];
+    a.style.display = ok ? 'flex' : 'none';
+    if (ok) a.href = `${API_BASE}/download/${data.task_id}/${kind}`;
+  });
+
+  // 回填自动生成内容，方便复核后再调整
+  const filled = data.filled || {};
+  for (const [group, values] of Object.entries(filled)) {
+    for (const [k, val] of Object.entries(values)) {
+      const el = $(`[name="${k}"]`);
+      if (!el || el.type === 'hidden' || el.tagName === 'SELECT') continue;
+      if (!el.value.trim() && val) {
+        el.value = Array.isArray(val) ? val.join(', ') : val;
+        refreshCount(el);
+      }
+    }
+  }
+  if (!state.languages.size && filled.dev && filled.dev.languages) {
+    filled.dev.languages.forEach(l => state.languages.add(l));
+    $$('#langBox .tag').forEach(t =>
+      t.classList.toggle('on', state.languages.has(t.textContent)));
+    $('#languages').value = [...state.languages].join(',');
+  }
+  if (!state.tech.size && filled.feature && filled.feature.tech_tags) {
+    filled.feature.tech_tags.forEach(t => state.tech.add(t));
+    $$('#techBox .tag').forEach(t =>
+      t.classList.toggle('on', state.tech.has(t.textContent)));
+    $('#techTags').value = [...state.tech].join(',');
+  }
+
+  $('#agentBtn').disabled = !(data.files.source_pdf && data.files.manual_pdf);
+  $('#agentState').textContent = $('#agentBtn').disabled
+    ? '鉴别材料未生成，无法开始自动填报。'
+    : '材料已就绪。点击后将打开浏览器窗口，验证码请在窗口内手动完成。';
+
+  toast(v.valid ? '材料已生成，字段校验通过' : '材料已生成，但有字段需要修正', !v.valid);
+}
+
+/* ---------------- 自动填报 ---------------- */
+let agentTimer;
+$('#agentBtn').onclick = async () => {
+  if (!state.taskId) return toast('请先生成材料', true);
+  const acc = $('#acc').value.trim(), pwd = $('#pwd').value;
+  if (!acc || !pwd) return toast('请填写平台账号与密码', true);
+
+  $('#agentBtn').disabled = true;
+  $('#agentState').textContent = '正在启动浏览器…';
+  try {
+    const res = await fetch(`${API_BASE}/agent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: state.taskId, username: acc, password: pwd,
+        auto_submit: $('#autoSubmit').checked, headless: false
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '启动失败');
+    pollAgent();
+  } catch (err) {
+    toast(err.message, true);
+    $('#agentBtn').disabled = false;
+    $('#agentState').textContent = err.message;
+  }
+};
+
+function pollAgent() {
+  clearInterval(agentTimer);
+  $('#agentState').textContent = '填报进行中：请在弹出的浏览器中完成验证码，并留意每步填写结果。';
+  agentTimer = setInterval(async () => {
+    const r = await fetch(`${API_BASE}/agent/${state.taskId}`);
+    const s = await r.json();
+    if (s.status === 'running') return;
+    clearInterval(agentTimer);
+    $('#agentBtn').disabled = false;
+    if (s.status === 'done' && s.result && s.result.success) {
+      $('#agentState').textContent = `已完成 Step ${(s.result.steps_completed || []).join(' / ')}，请在浏览器中最终确认后提交。`;
+      toast('自动填报流程完成');
+    } else {
+      const msg = (s.result && s.result.error) || '流程中断，请查看服务端日志';
+      $('#agentState').textContent = msg;
+      toast('自动填报未完成：' + msg, true);
+    }
+  }, 3000);
+}
+</script>
+</body>
+</html>
